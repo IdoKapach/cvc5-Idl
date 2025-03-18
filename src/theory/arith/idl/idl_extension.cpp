@@ -246,12 +246,58 @@ void IdlExtension::processAssertion(TNode assertion)
   }
 }
 
+// bool IdlExtension::negativeCycle() {
+//   return true;
+// }
+
 bool IdlExtension::negativeCycle()
 {
   // --------------------------------------------------------------------------
   // TODO: write the code to detect a negative cycle.
   // --------------------------------------------------------------------------
 
+  // create a copy of the graph with additional node with an arc to each of the other nodes 
+  // with weight 0
+  std::vector<std::vector<bool>> c_valid = d_valid;
+  std::vector<std::vector<Rational>> c_matrix = d_matrix;
+  std::vector<bool> n_bvar = {};
+  std::vector<Rational> n_vvar = {};
+
+  for (size_t i = 0; i < d_numVars; ++i) {
+    c_valid[i].emplace_back(false);
+    c_matrix[i].emplace_back(0);
+    n_bvar.emplace_back(true);
+    n_vvar.emplace_back(0);
+  }
+
+  c_valid.emplace_back(n_bvar);
+  c_matrix.emplace_back(n_vvar);
+
+  // belman-fords's algorithm to check if the graph contains a negative circle
+  size_t n_numVars = d_numVars + 1;
+  std::vector<Rational> shortest_path(n_numVars, Rational("99999999999"));
+  shortest_path[n_numVars - 1] = 0;
+  // find the shortest path from the new node to each node
+  for (size_t p = 1; p < n_numVars; ++p) {
+    for (size_t i = 0; i < n_numVars; ++i) {
+      for (size_t j = 0; j < n_numVars; ++j) {
+        if (c_valid[i][j]) {
+          shortest_path[j] = shortest_path[j] <= (shortest_path[i] + c_matrix[i][j]) ? 
+                shortest_path[j] : (shortest_path[i] + c_matrix[i][j]);
+        }
+      }
+    }
+  }
+  // check if the graph contains a negative circle
+  for (size_t i = 0; i < n_numVars; ++i) {
+    for (size_t j = 0; j < n_numVars; ++j) {
+      if (c_valid[i][j]) {
+        if (shortest_path[j] > (shortest_path[i] + c_matrix[i][j])){
+          return true;
+        }
+      }
+    }
+  }
   return false;
 }
 
