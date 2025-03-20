@@ -81,6 +81,8 @@ void IdlExtension::notifyFact(
 
 Node IdlExtension::ppStaticRewrite(TNode atom)
 {
+  // std::cout << atom << std::endl;
+
   // We are only interested in predicates
   if (!atom.getType().isBoolean())
   {
@@ -90,9 +92,62 @@ Node IdlExtension::ppStaticRewrite(TNode atom)
   Trace("theory::arith::idl")
       << "IdlExtension::ppStaticRewrite(): processing " << atom << std::endl;
   NodeManager* nm = NodeManager::currentNM();
+  Rational oldValue = atom[1].getConst<Rational>();
+
+  // Assume the atom's form is: x - y op n when n in const and x and y are variables
+  Kind k = Kind::LEQ;
+  Node n_atom;
+  switch (atom.getKind())
+  {
+    // -------------------------------------------------------------------------
+    // TODO: Handle these cases.
+    // -------------------------------------------------------------------------
+    case Kind::EQUAL:
+    {
+      Node n_val = nm->mkConstReal(oldValue * Rational(-1));
+      Node n_left = nm->mkNode(Kind::SUB, atom[0][1], atom[0][0]);
+      Node n1_atom = nm->mkNode(k, n_left, n_val);
+      Node n2_atom = nm->mkNode(k,atom[0], atom[1]);
+      n_atom = nm->mkNode(Kind::AND, n1_atom, n2_atom);
+      break;
+    }
+    case Kind::LT:{
+      Node n_val = nm->mkConstReal(oldValue - Rational(1));
+      n_atom = nm->mkNode(k, atom[0], n_val);
+      break;
+    }
+    case Kind::LEQ:{
+      n_atom = atom;
+      break;
+    }
+    case Kind::GT:
+    {
+      Node n_val = nm->mkConstReal((oldValue + Rational(1)) * Rational(-1));
+      Node n_left = nm->mkNode(Kind::SUB, atom[0][1], atom[0][0]);
+      n_atom = nm->mkNode(k, n_left, n_val);
+      break;
+    }
+    case Kind::GEQ:
+    {
+      Node n_val = nm->mkConstReal(oldValue * Rational(-1));
+      Node n_left = nm->mkNode(Kind::SUB, atom[0][1], atom[0][0]);
+      n_atom = nm->mkNode(k, n_left, n_val);
+      break;
+    }
+    default: break;
+  }
+  // std::cout << atom << " -> " << n_atom << std::endl;
+  return n_atom;
+
+
+
+
 
   if (atom[0].getKind() == Kind::CONST_INTEGER)
   {
+    Rational oldValue = atom.getConst<Rational>();
+    std::cout << "val: " << oldValue << std::endl;
+
     // Move constant value to right-hand side
     Kind k = Kind::EQUAL;
     switch (atom.getKind())
