@@ -1,0 +1,18 @@
+(set-option :produce-models true)
+(set-logic QF_IDL)
+(set-info :source |Example for Formal Techniques Summer School May 23, 2016 by
+Clark Barrett
+|)
+(set-info :smt-lib-version 2.0)
+(set-info :category "crafted")
+(set-info :status sat)
+(declare-const x Int)
+(declare-const y Int)
+(declare-const z Int)
+(declare-const w Int)
+(assert (<= (- y x) 2))
+(assert (<= (- z y) (- 1)))
+(assert (<= (- x z) 3))
+(assert (<= (- w z) (- 2)))
+(check-sat)
+(get-model)

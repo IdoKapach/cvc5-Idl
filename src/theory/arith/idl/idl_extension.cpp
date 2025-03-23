@@ -94,7 +94,7 @@ Node IdlExtension::ppStaticRewrite(TNode atom)
   NodeManager* nm = NodeManager::currentNM();
   Rational oldValue = atom[1].getConst<Rational>();
 
-  // Assume the atom's form is: x - y op n when n in const and x and y are variables
+  // Assume the atom's form is: "x - y op n" when n in const and x and y are variables
   Kind k = Kind::LEQ;
   Node n_atom;
   switch (atom.getKind())
@@ -103,6 +103,7 @@ Node IdlExtension::ppStaticRewrite(TNode atom)
     // TODO: Handle these cases.
     // -------------------------------------------------------------------------
     case Kind::EQUAL:
+    // append the atoms: x-y <= n and y-x <= -n
     {
       Node n_val = nm->mkConstReal(oldValue * Rational(-1));
       Node n_left = nm->mkNode(Kind::SUB, atom[0][1], atom[0][0]);
@@ -112,15 +113,18 @@ Node IdlExtension::ppStaticRewrite(TNode atom)
       break;
     }
     case Kind::LT:{
+    // switch the old atom with: x-y <= n-1
       Node n_val = nm->mkConstReal(oldValue - Rational(1));
       n_atom = nm->mkNode(k, atom[0], n_val);
       break;
     }
     case Kind::LEQ:{
+    // don't change the atom in this case
       n_atom = atom;
       break;
     }
     case Kind::GT:
+    // switch the old atom with: y-x <= -n - 1
     {
       Node n_val = nm->mkConstReal((oldValue + Rational(1)) * Rational(-1));
       Node n_left = nm->mkNode(Kind::SUB, atom[0][1], atom[0][0]);
@@ -128,6 +132,7 @@ Node IdlExtension::ppStaticRewrite(TNode atom)
       break;
     }
     case Kind::GEQ:
+    // switch the old atom with: x-y <= -n
     {
       Node n_val = nm->mkConstReal(oldValue * Rational(-1));
       Node n_left = nm->mkNode(Kind::SUB, atom[0][1], atom[0][0]);
@@ -140,66 +145,66 @@ Node IdlExtension::ppStaticRewrite(TNode atom)
   return n_atom;
 
 
+  // I PUT ALL THE IRELEVANT CASES IN A COMMENT
 
 
+  // if (atom[0].getKind() == Kind::CONST_INTEGER)
+  // {
+  //   Rational oldValue = atom.getConst<Rational>();
+  //   std::cout << "val: " << oldValue << std::endl;
 
-  if (atom[0].getKind() == Kind::CONST_INTEGER)
-  {
-    Rational oldValue = atom.getConst<Rational>();
-    std::cout << "val: " << oldValue << std::endl;
+  //   // Move constant value to right-hand side
+  //   Kind k = Kind::EQUAL;
+  //   switch (atom.getKind())
+  //   {
+  //     // -------------------------------------------------------------------------
+  //     // TODO: Handle these cases.
+  //     // -------------------------------------------------------------------------
+  //     case Kind::EQUAL:
+  //     case Kind::LT:
+  //     case Kind::LEQ:
+  //     case Kind::GT:
+  //     case Kind::GEQ:
+  //     default: break;
+  //   }
+  //   return ppStaticRewrite(nm->mkNode(k, atom[1], atom[0]));
+  // }
+  // else if (atom[1].getKind() == Kind::VARIABLE)
+  // {
+  //   // Handle the case where there are no constants, e.g., (= x y) where both
+  //   // x and y are variables
+  //   Node ret = atom;
+  //   // -------------------------------------------------------------------------
+  //   // TODO: Handle this case.
+  //   // -------------------------------------------------------------------------
+  //   return ret;
+  // }
 
-    // Move constant value to right-hand side
-    Kind k = Kind::EQUAL;
-    switch (atom.getKind())
-    {
-      // -------------------------------------------------------------------------
-      // TODO: Handle these cases.
-      // -------------------------------------------------------------------------
-      case Kind::EQUAL:
-      case Kind::LT:
-      case Kind::LEQ:
-      case Kind::GT:
-      case Kind::GEQ:
-      default: break;
-    }
-    return ppStaticRewrite(nm->mkNode(k, atom[1], atom[0]));
-  }
-  else if (atom[1].getKind() == Kind::VARIABLE)
-  {
-    // Handle the case where there are no constants, e.g., (= x y) where both
-    // x and y are variables
-    Node ret = atom;
-    // -------------------------------------------------------------------------
-    // TODO: Handle this case.
-    // -------------------------------------------------------------------------
-    return ret;
-  }
+  // switch (atom.getKind())
+  // {
+  //   case Kind::EQUAL:
+  //   {
+  //     Node l_le_r = nm->mkNode(Kind::LEQ, atom[0], atom[1]);
+  //     Assert(atom[0].getKind() == Kind::SUB);
+  //     Node negated_left = nm->mkNode(Kind::SUB, atom[0][1], atom[0][0]);
+  //     const Rational& right = atom[1].getConst<Rational>();
+  //     Node negated_right = nm->mkConstInt(-right);
+  //     Node r_le_l = nm->mkNode(Kind::LEQ, negated_left, negated_right);
+  //     return nm->mkNode(Kind::AND, l_le_r, r_le_l);
+  //   }
 
-  switch (atom.getKind())
-  {
-    case Kind::EQUAL:
-    {
-      Node l_le_r = nm->mkNode(Kind::LEQ, atom[0], atom[1]);
-      Assert(atom[0].getKind() == Kind::SUB);
-      Node negated_left = nm->mkNode(Kind::SUB, atom[0][1], atom[0][0]);
-      const Rational& right = atom[1].getConst<Rational>();
-      Node negated_right = nm->mkConstInt(-right);
-      Node r_le_l = nm->mkNode(Kind::LEQ, negated_left, negated_right);
-      return nm->mkNode(Kind::AND, l_le_r, r_le_l);
-    }
+  //   // -------------------------------------------------------------------------
+  //   // TODO: Handle these cases.
+  //   // -------------------------------------------------------------------------
+  //   case Kind::LT:
+  //   case Kind::LEQ:
+  //   case Kind::GT:
+  //   case Kind::GEQ:
+  //     // -------------------------------------------------------------------------
 
-    // -------------------------------------------------------------------------
-    // TODO: Handle these cases.
-    // -------------------------------------------------------------------------
-    case Kind::LT:
-    case Kind::LEQ:
-    case Kind::GT:
-    case Kind::GEQ:
-      // -------------------------------------------------------------------------
-
-    default: break;
-  }
-  return atom;
+  //   default: break;
+  // }
+  // return atom;
 }
 
 void IdlExtension::postCheck(Theory::Effort level)
@@ -288,10 +293,10 @@ bool IdlExtension::collectModelInfo(TheoryModel* m,
     for (size_t i = 0; i < n_numVars; ++i) {
       for (size_t j = 0; j < n_numVars; ++j) {
         if (c_valid[j][i]) {
-          std::cout << j << ": " << shortest_path[j] << " -> " << shortest_path[i] + c_matrix[j][i] << std::endl;
+          // std::cout << j << ": " << shortest_path[j] << " -> " << shortest_path[i] + c_matrix[j][i] << std::endl;
           shortest_path[j] = shortest_path[j] <= (shortest_path[i] + c_matrix[j][i]) ? 
                 shortest_path[j] : (shortest_path[i] + c_matrix[j][i]);
-          std::cout << "fin: " << shortest_path[j] << std::endl;
+          // std::cout << "fin: " << shortest_path[j] << std::endl;
         }
       }
     }
