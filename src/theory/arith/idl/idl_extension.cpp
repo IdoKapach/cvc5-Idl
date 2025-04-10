@@ -81,6 +81,8 @@ void IdlExtension::notifyFact(
 
 Node IdlExtension::ppStaticRewrite(TNode atom)
 {
+  // std::cout << atom << std::endl;
+
   // We are only interested in predicates
   if (!atom.getType().isBoolean())
   {
@@ -90,61 +92,119 @@ Node IdlExtension::ppStaticRewrite(TNode atom)
   Trace("theory::arith::idl")
       << "IdlExtension::ppStaticRewrite(): processing " << atom << std::endl;
   NodeManager* nm = NodeManager::currentNM();
+  Rational oldValue = atom[1].getConst<Rational>();
 
-  if (atom[0].getKind() == Kind::CONST_INTEGER)
-  {
-    // Move constant value to right-hand side
-    Kind k = Kind::EQUAL;
-    switch (atom.getKind())
-    {
-      // -------------------------------------------------------------------------
-      // TODO: Handle these cases.
-      // -------------------------------------------------------------------------
-      case Kind::EQUAL:
-      case Kind::LT:
-      case Kind::LEQ:
-      case Kind::GT:
-      case Kind::GEQ:
-      default: break;
-    }
-    return ppStaticRewrite(nm->mkNode(k, atom[1], atom[0]));
-  }
-  else if (atom[1].getKind() == Kind::VARIABLE)
-  {
-    // Handle the case where there are no constants, e.g., (= x y) where both
-    // x and y are variables
-    Node ret = atom;
-    // -------------------------------------------------------------------------
-    // TODO: Handle this case.
-    // -------------------------------------------------------------------------
-    return ret;
-  }
-
+  // Assume the atom's form is: "x - y op n" when n in const and x and y are variables
+  Kind k = Kind::LEQ;
+  Node n_atom;
   switch (atom.getKind())
   {
-    case Kind::EQUAL:
-    {
-      Node l_le_r = nm->mkNode(Kind::LEQ, atom[0], atom[1]);
-      Assert(atom[0].getKind() == Kind::SUB);
-      Node negated_left = nm->mkNode(Kind::SUB, atom[0][1], atom[0][0]);
-      const Rational& right = atom[1].getConst<Rational>();
-      Node negated_right = nm->mkConstInt(-right);
-      Node r_le_l = nm->mkNode(Kind::LEQ, negated_left, negated_right);
-      return nm->mkNode(Kind::AND, l_le_r, r_le_l);
-    }
-
     // -------------------------------------------------------------------------
     // TODO: Handle these cases.
     // -------------------------------------------------------------------------
-    case Kind::LT:
-    case Kind::LEQ:
+    case Kind::EQUAL:
+    // append the atoms: x-y <= n and y-x <= -n
+    {
+      Node n_val = nm->mkConstReal(oldValue * Rational(-1));
+      Node n_left = nm->mkNode(Kind::SUB, atom[0][1], atom[0][0]);
+      Node n1_atom = nm->mkNode(k, n_left, n_val);
+      Node n2_atom = nm->mkNode(k,atom[0], atom[1]);
+      n_atom = nm->mkNode(Kind::AND, n1_atom, n2_atom);
+      break;
+    }
+    case Kind::LT:{
+    // switch the old atom with: x-y <= n-1
+      Node n_val = nm->mkConstReal(oldValue - Rational(1));
+      n_atom = nm->mkNode(k, atom[0], n_val);
+      break;
+    }
+    case Kind::LEQ:{
+    // don't change the atom in this case
+      n_atom = atom;
+      break;
+    }
     case Kind::GT:
+    // switch the old atom with: y-x <= -n - 1
+    {
+      Node n_val = nm->mkConstReal((oldValue + Rational(1)) * Rational(-1));
+      Node n_left = nm->mkNode(Kind::SUB, atom[0][1], atom[0][0]);
+      n_atom = nm->mkNode(k, n_left, n_val);
+      break;
+    }
     case Kind::GEQ:
-      // -------------------------------------------------------------------------
-
+    // switch the old atom with: x-y <= -n
+    {
+      Node n_val = nm->mkConstReal(oldValue * Rational(-1));
+      Node n_left = nm->mkNode(Kind::SUB, atom[0][1], atom[0][0]);
+      n_atom = nm->mkNode(k, n_left, n_val);
+      break;
+    }
     default: break;
   }
-  return atom;
+  // std::cout << atom << " -> " << n_atom << std::endl;
+  return n_atom;
+
+
+  // I PUT ALL THE IRELEVANT CASES IN A COMMENT
+
+
+  // if (atom[0].getKind() == Kind::CONST_INTEGER)
+  // {
+  //   Rational oldValue = atom.getConst<Rational>();
+  //   std::cout << "val: " << oldValue << std::endl;
+
+  //   // Move constant value to right-hand side
+  //   Kind k = Kind::EQUAL;
+  //   switch (atom.getKind())
+  //   {
+  //     // -------------------------------------------------------------------------
+  //     // TODO: Handle these cases.
+  //     // -------------------------------------------------------------------------
+  //     case Kind::EQUAL:
+  //     case Kind::LT:
+  //     case Kind::LEQ:
+  //     case Kind::GT:
+  //     case Kind::GEQ:
+  //     default: break;
+  //   }
+  //   return ppStaticRewrite(nm->mkNode(k, atom[1], atom[0]));
+  // }
+  // else if (atom[1].getKind() == Kind::VARIABLE)
+  // {
+  //   // Handle the case where there are no constants, e.g., (= x y) where both
+  //   // x and y are variables
+  //   Node ret = atom;
+  //   // -------------------------------------------------------------------------
+  //   // TODO: Handle this case.
+  //   // -------------------------------------------------------------------------
+  //   return ret;
+  // }
+
+  // switch (atom.getKind())
+  // {
+  //   case Kind::EQUAL:
+  //   {
+  //     Node l_le_r = nm->mkNode(Kind::LEQ, atom[0], atom[1]);
+  //     Assert(atom[0].getKind() == Kind::SUB);
+  //     Node negated_left = nm->mkNode(Kind::SUB, atom[0][1], atom[0][0]);
+  //     const Rational& right = atom[1].getConst<Rational>();
+  //     Node negated_right = nm->mkConstInt(-right);
+  //     Node r_le_l = nm->mkNode(Kind::LEQ, negated_left, negated_right);
+  //     return nm->mkNode(Kind::AND, l_le_r, r_le_l);
+  //   }
+
+  //   // -------------------------------------------------------------------------
+  //   // TODO: Handle these cases.
+  //   // -------------------------------------------------------------------------
+  //   case Kind::LT:
+  //   case Kind::LEQ:
+  //   case Kind::GT:
+  //   case Kind::GEQ:
+  //     // -------------------------------------------------------------------------
+
+  //   default: break;
+  // }
+  // return atom;
 }
 
 void IdlExtension::postCheck(Theory::Effort level)
@@ -206,12 +266,47 @@ bool IdlExtension::collectModelInfo(TheoryModel* m,
   // TODO: implement model generation by computing the single-source shortest
   // path from a node that has distance zero to all other nodes
   // ---------------------------------------------------------------------------
+  // create a copy of the graph with additional node with an arc to each of the other nodes 
+  // with weight 0
+  std::vector<std::vector<bool>> c_valid = d_valid;
+  std::vector<std::vector<Rational>> c_matrix = d_matrix;
+  std::vector<bool> n_bvar = {};
+  std::vector<Rational> n_vvar = {};
+
+  for (size_t i = 0; i < d_numVars; ++i) {
+    c_valid[i].emplace_back(true);
+    c_matrix[i].emplace_back(0);
+    n_bvar.emplace_back(false);
+    n_vvar.emplace_back(0);
+  }
+  n_bvar[d_numVars] = false;
+
+  c_valid.emplace_back(n_bvar);
+  c_matrix.emplace_back(n_vvar);
+
+  // belman-fords's algorithm to check if the graph contains a negative circle
+  size_t n_numVars = d_numVars + 1;
+  std::vector<Rational> shortest_path(n_numVars, Rational("99999999999"));
+  shortest_path[n_numVars - 1] = 0;
+  // find the shortest path from the new node to each node
+  for (size_t p = 1; p < n_numVars; ++p) {
+    for (size_t i = 0; i < n_numVars; ++i) {
+      for (size_t j = 0; j < n_numVars; ++j) {
+        if (c_valid[j][i]) {
+          // std::cout << j << ": " << shortest_path[j] << " -> " << shortest_path[i] + c_matrix[j][i] << std::endl;
+          shortest_path[j] = shortest_path[j] <= (shortest_path[i] + c_matrix[j][i]) ? 
+                shortest_path[j] : (shortest_path[i] + c_matrix[j][i]);
+          // std::cout << "fin: " << shortest_path[j] << std::endl;
+        }
+      }
+    }
+  }
 
   NodeManager* nm = NodeManager::currentNM();
   for (size_t i = 0; i < d_numVars; i++)
   {
     // Assert that the variable's value is equal to its distance in the model
-    m->assertEquality(d_varList[i], nm->mkConstInt(distance[i]), true);
+    m->assertEquality(d_varList[i], nm->mkConstInt(shortest_path[i]), true);
   }
 
   return true;
@@ -246,12 +341,58 @@ void IdlExtension::processAssertion(TNode assertion)
   }
 }
 
+// bool IdlExtension::negativeCycle() {
+//   return true;
+// }
+
 bool IdlExtension::negativeCycle()
 {
   // --------------------------------------------------------------------------
   // TODO: write the code to detect a negative cycle.
   // --------------------------------------------------------------------------
 
+  // create a copy of the graph with additional node with an arc to each of the other nodes 
+  // with weight 0
+  std::vector<std::vector<bool>> c_valid = d_valid;
+  std::vector<std::vector<Rational>> c_matrix = d_matrix;
+  std::vector<bool> n_bvar = {};
+  std::vector<Rational> n_vvar = {};
+
+  for (size_t i = 0; i < d_numVars; ++i) {
+    c_valid[i].emplace_back(false);
+    c_matrix[i].emplace_back(0);
+    n_bvar.emplace_back(true);
+    n_vvar.emplace_back(0);
+  }
+
+  c_valid.emplace_back(n_bvar);
+  c_matrix.emplace_back(n_vvar);
+
+  // belman-fords's algorithm to check if the graph contains a negative circle
+  size_t n_numVars = d_numVars + 1;
+  std::vector<Rational> shortest_path(n_numVars, Rational("99999999999"));
+  shortest_path[n_numVars - 1] = 0;
+  // find the shortest path from the new node to each node
+  for (size_t p = 1; p < n_numVars; ++p) {
+    for (size_t i = 0; i < n_numVars; ++i) {
+      for (size_t j = 0; j < n_numVars; ++j) {
+        if (c_valid[i][j]) {
+          shortest_path[j] = shortest_path[j] <= (shortest_path[i] + c_matrix[i][j]) ? 
+                shortest_path[j] : (shortest_path[i] + c_matrix[i][j]);
+        }
+      }
+    }
+  }
+  // check if the graph contains a negative circle
+  for (size_t i = 0; i < n_numVars; ++i) {
+    for (size_t j = 0; j < n_numVars; ++j) {
+      if (c_valid[i][j]) {
+        if (shortest_path[j] > (shortest_path[i] + c_matrix[i][j])){
+          return true;
+        }
+      }
+    }
+  }
   return false;
 }
 
