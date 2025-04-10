@@ -15,6 +15,9 @@
 
 # Regression level 0 tests
 set(regress_0_tests
+  regress0/idl/e1.smt2
+  regress0/idl/e2.smt2
+  regress0/idl/e3.smt2
   regress0/arith/ackermann.real.smt2
   regress0/arith/arith-eq.smt2
   regress0/arith/arith-mixed-types-no-tighten.smt2

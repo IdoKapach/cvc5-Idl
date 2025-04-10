@@ -6,6 +6,17 @@ Clark Barrett
 (set-info :smt-lib-version 2.0)
 (set-info :category "crafted")
 (set-info :status sat)
+
+; COMMAND-LINE: --lang smt2
+; EXPECT: sat
+; EXPECT: (
+; EXPECT: (define-fun x () Int 0)
+; EXPECT: (define-fun y () Int (- 1))
+; EXPECT: (define-fun z () Int 1)
+; EXPECT: (define-fun w () Int (- 2))
+; EXPECT: )
+; EXIT: 0
+
 (declare-const x Int)
 (declare-const y Int)
 (declare-const z Int)
